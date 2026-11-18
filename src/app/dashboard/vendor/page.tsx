@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   UtensilsCrossed,
@@ -14,33 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-const stats = [
-  {
-    title: "Menu Items",
-    value: "0",
-    description: "Pizzas on your menu",
-    icon: UtensilsCrossed,
-  },
-  {
-    title: "Total Orders",
-    value: "0",
-    description: "Orders received",
-    icon: ShoppingBag,
-  },
-  {
-    title: "Revenue",
-    value: "$0.00",
-    description: "From completed orders",
-    icon: DollarSign,
-  },
-  {
-    title: "Plan",
-    value: "Free",
-    description: "Upgrade to Premium",
-    icon: Crown,
-  },
-];
+import { apiFetch } from "@/lib/api";
 
 const quickActions = [
   {
@@ -64,6 +41,48 @@ const quickActions = [
 ];
 
 export default function VendorOverviewPage() {
+  const [menuCount, setMenuCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const data = await apiFetch<{ total: number }>("/api/menu-items/mine");
+        setMenuCount(data.total);
+      } catch {
+        setMenuCount(0);
+      }
+    }
+
+    loadStats();
+  }, []);
+
+  const stats = [
+    {
+      title: "Menu Items",
+      value: menuCount === null ? "..." : String(menuCount),
+      description: "Pizzas on your menu",
+      icon: UtensilsCrossed,
+    },
+    {
+      title: "Total Orders",
+      value: "0",
+      description: "Orders received",
+      icon: ShoppingBag,
+    },
+    {
+      title: "Revenue",
+      value: "$0.00",
+      description: "From completed orders",
+      icon: DollarSign,
+    },
+    {
+      title: "Plan",
+      value: "Free",
+      description: "Upgrade to Premium",
+      icon: Crown,
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
