@@ -6,6 +6,16 @@ import { toast } from "sonner";
 import { Loader2, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -27,7 +37,8 @@ type MenuItem = {
 export default function VendorMenuPage() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function loadItems() {
@@ -48,23 +59,23 @@ export default function VendorMenuPage() {
     loadItems();
   }, []);
 
-  async function handleDelete(item: MenuItem) {
-    const confirmed = window.confirm(
-      `Delete "${item.name}"? This cannot be undone.`
-    );
-    if (!confirmed) return;
+  async function confirmDelete() {
+    if (!itemToDelete) return;
 
-    setDeletingId(item._id);
+    setDeleting(true);
     try {
-      await apiFetch(`/api/menu-items/${item._id}`, { method: "DELETE" });
-      setItems((prev) => prev.filter((i) => i._id !== item._id));
+      await apiFetch(`/api/menu-items/${itemToDelete._id}`, {
+        method: "DELETE",
+      });
+      setItems((prev) => prev.filter((i) => i._id !== itemToDelete._id));
       toast.success("Menu item deleted");
+      setItemToDelete(null);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to delete item"
       );
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   }
 
@@ -148,17 +159,10 @@ export default function VendorMenuPage() {
                   <Button
                     variant="outline"
                     className="flex-1 hover:border-red-500 hover:text-red-500"
-                    disabled={deletingId === item._id}
-                    onClick={() => handleDelete(item)}
+                    onClick={() => setItemToDelete(item)}
                   >
-                    {deletingId === item._id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </>
-                    )}
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
                   </Button>
                 </div>
               </CardContent>
@@ -166,6 +170,41 @@ export default function VendorMenuPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog
+        open={itemToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setItemToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this menu item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemToDelete
+                ? `"${itemToDelete.name}" will be permanently removed from your menu. This cannot be undone.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={confirmDelete}
+              className="bg-red-500 text-white hover:bg-red-600"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
