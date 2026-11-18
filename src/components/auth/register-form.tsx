@@ -122,7 +122,7 @@ export function RegisterForm() {
           <Label htmlFor="name">Full name</Label>
           <Input
             id="name"
-            placeholder="Akram Khan"
+            placeholder="your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
