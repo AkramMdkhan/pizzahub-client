@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, Pizza } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, LogOut, Menu, Pizza } from "lucide-react";
+import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -12,6 +13,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
+import { signOut, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -23,9 +26,19 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+  const user = session?.user;
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+  async function handleLogout() {
+    await signOut();
+    toast.success("Logged out");
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -59,18 +72,34 @@ export function Navbar() {
         {/* Desktop actions */}
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
-          <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
-            Login
-          </Link>
-          <Link
-            href="/register"
-            className={cn(
-              buttonVariants(),
-              "bg-orange-500 text-white hover:bg-orange-600"
-            )}
-          >
-            Register
-          </Link>
+          {isPending ? (
+            <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+          ) : user ? (
+            <UserMenu
+              name={user.name}
+              email={user.email}
+              image={user.image}
+              role={user.role}
+            />
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className={buttonVariants({ variant: "ghost" })}
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className={cn(
+                  buttonVariants(),
+                  "bg-orange-500 text-white hover:bg-orange-600"
+                )}
+              >
+                Register
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile menu */}
@@ -88,6 +117,21 @@ export function Navbar() {
               <SheetTitle className="px-4 pt-4 font-[family-name:var(--font-poppins)] text-lg font-bold">
                 Pizza<span className="text-orange-500">Hub</span>
               </SheetTitle>
+
+              {user && (
+                <div className="mx-4 mt-4 rounded-lg border bg-muted/40 p-3">
+                  <p className="truncate text-sm font-semibold">{user.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </p>
+                  {user.role && (
+                    <span className="mt-2 inline-block rounded-full bg-orange-500/10 px-2 py-0.5 text-xs font-medium capitalize text-orange-500">
+                      {user.role}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <nav className="flex flex-col gap-1 px-4 pt-4">
                 {navLinks.map((link) => (
                   <SheetClose
@@ -109,32 +153,67 @@ export function Navbar() {
                   </SheetClose>
                 ))}
               </nav>
+
               <div className="mt-4 flex flex-col gap-2 px-4">
-                <SheetClose
-                  nativeButton={false}
-                  render={
-                    <Link
-                      href="/login"
-                      className={buttonVariants({ variant: "outline" })}
-                    />
-                  }
-                >
-                  Login
-                </SheetClose>
-                <SheetClose
-                  nativeButton={false}
-                  render={
-                    <Link
-                      href="/register"
-                      className={cn(
-                        buttonVariants(),
-                        "bg-orange-500 text-white hover:bg-orange-600"
-                      )}
-                    />
-                  }
-                >
-                  Register
-                </SheetClose>
+                {user ? (
+                  <>
+                    <SheetClose
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href="/dashboard"
+                          className={cn(
+                            buttonVariants({ variant: "outline" }),
+                            "gap-2"
+                          )}
+                        />
+                      }
+                    >
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboard
+                    </SheetClose>
+                    <SheetClose
+                      render={
+                        <Button
+                          variant="outline"
+                          className="gap-2 text-red-500"
+                          onClick={handleLogout}
+                        />
+                      }
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Log out
+                    </SheetClose>
+                  </>
+                ) : (
+                  <>
+                    <SheetClose
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href="/login"
+                          className={buttonVariants({ variant: "outline" })}
+                        />
+                      }
+                    >
+                      Login
+                    </SheetClose>
+                    <SheetClose
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href="/register"
+                          className={cn(
+                            buttonVariants(),
+                            "bg-orange-500 text-white hover:bg-orange-600"
+                          )}
+                        />
+                      }
+                    >
+                      Register
+                    </SheetClose>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>
