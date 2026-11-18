@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImageIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
-import { uploadToImgBB } from "@/lib/imgbb";
 
 const categories = [
   "Classic",
@@ -33,18 +32,9 @@ export default function AddMenuItemPage() {
   const [price, setPrice] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [isVegetarian, setIsVegetarian] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (preview) URL.revokeObjectURL(preview);
-    setImageFile(file);
-    setPreview(URL.createObjectURL(file));
-  }
 
   function resetForm() {
     setName("");
@@ -53,27 +43,24 @@ export default function AddMenuItemPage() {
     setPrice("");
     setIngredients("");
     setIsVegetarian(false);
-    setImageFile(null);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null);
+    setImageUrl("");
+    setImageError(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!imageFile) {
-      toast.error("Please select an image for your pizza");
-      return;
-    }
     if (!category) {
       toast.error("Please choose a category");
+      return;
+    }
+    if (imageError) {
+      toast.error("The image URL could not be loaded. Please check it.");
       return;
     }
 
     setLoading(true);
     try {
-      const imageUrl = await uploadToImgBB(imageFile);
-
       await apiFetch("/api/menu-items", {
         method: "POST",
         body: {
@@ -81,7 +68,7 @@ export default function AddMenuItemPage() {
           description,
           category,
           price: Number(price),
-          image: imageUrl,
+          image: imageUrl.trim(),
           isVegetarian,
           ingredients: ingredients
             .split(",")
@@ -100,6 +87,8 @@ export default function AddMenuItemPage() {
       setLoading(false);
     }
   }
+
+  const showPreview = imageUrl.trim().length > 0 && !imageError;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -206,32 +195,40 @@ export default function AddMenuItemPage() {
             </label>
 
             <div className="space-y-2">
-              <Label htmlFor="image">Pizza image</Label>
-              <label
-                htmlFor="image"
-                className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-sm text-muted-foreground transition-colors hover:border-orange-500"
-              >
-                {preview ? (
+              <Label htmlFor="image">Pizza image URL</Label>
+              <Input
+                id="image"
+                type="url"
+                placeholder="https://example.com/pizza.jpg"
+                value={imageUrl}
+                onChange={(e) => {
+                  setImageUrl(e.target.value);
+                  setImageError(false);
+                }}
+                required
+              />
+              {imageError && (
+                <p className="text-sm text-red-500">
+                  This image could not be loaded. Check the URL.
+                </p>
+              )}
+
+              <div className="flex h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed text-sm text-muted-foreground">
+                {showPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={preview}
-                    alt="Selected pizza preview"
-                    className="h-48 w-full rounded-md object-cover"
+                    src={imageUrl.trim()}
+                    alt="Pizza preview"
+                    className="h-full w-full object-cover"
+                    onError={() => setImageError(true)}
                   />
                 ) : (
-                  <>
-                    <ImagePlus className="h-8 w-8 text-orange-500" />
-                    <span>Click to choose an image (max 5MB)</span>
-                  </>
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon className="h-8 w-8 text-orange-500" />
+                    <span>Image preview appears here</span>
+                  </div>
                 )}
-              </label>
-              <input
-                id="image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
+              </div>
             </div>
 
             <Button
