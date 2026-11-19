@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   UtensilsCrossed,
-  ShoppingBag,
-  DollarSign,
+  Utensils,
+  Clock,
+  CheckCircle2,
   Crown,
   PlusCircle,
   ListOrdered,
+  Loader2,
 } from "lucide-react";
 import {
   Card,
@@ -17,7 +19,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useSession } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
+
+interface MenuItemLite {
+  _id: string;
+  status?: "pending" | "approved" | "rejected" | "inactive";
+}
+
+interface OrderStats {
+  total: number;
+  pending: number;
+  accepted: number;
+  rejected: number;
+  cancelled: number;
+}
+
+interface Order {
+  _id: string;
+  itemName: string;
+  itemImage: string;
+  customerName?: string;
+  deliveryDate: string;
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+}
 
 const quickActions = [
   {
@@ -40,46 +65,93 @@ const quickActions = [
   },
 ];
 
+const STATUS_STYLES: Record<Order["status"], string> = {
+  pending: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+  accepted: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
+  cancelled: "bg-muted text-muted-foreground",
+};
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function VendorOverviewPage() {
-  const [menuCount, setMenuCount] = useState<number | null>(null);
+  const { data: session } = useSession();
+  const [items, setItems] = useState<MenuItemLite[]>([]);
+  const [stats, setStats] = useState<OrderStats | null>(null);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadStats() {
-      try {
-        const data = await apiFetch<{ total: number }>("/api/menu-items/mine");
-        setMenuCount(data.total);
-      } catch {
-        setMenuCount(0);
-      }
-    }
+    let cancelled = false;
 
-    loadStats();
+    Promise.all([
+      apiFetch<{ items: MenuItemLite[] }>("/api/menu-items/mine"),
+      apiFetch<OrderStats>("/api/orders/stats"),
+      apiFetch<{ items: Order[] }>("/api/orders/vendor"),
+    ])
+      .then(([itemsData, statsData, ordersData]) => {
+        if (cancelled) return;
+        setItems(itemsData.items);
+        setStats(statsData);
+        setRecentOrders(ordersData.items.slice(0, 5));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load your dashboard"
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const stats = [
+  const plan =
+    (session?.user as { subscriptionPlan?: string } | undefined)
+      ?.subscriptionPlan === "premium"
+      ? "Premium"
+      : "Free";
+
+  const activeItems = items.filter((i) => i.status === "approved").length;
+  const waitingApproval = items.filter((i) => i.status === "pending").length;
+
+  const cards = [
     {
-      title: "Menu Items",
-      value: menuCount === null ? "..." : String(menuCount),
-      description: "Pizzas on your menu",
+      title: "Total Menu Items",
+      value: items.length,
+      description: "All pizzas you have added",
+      icon: Utensils,
+    },
+    {
+      title: "Active Menu Items",
+      value: activeItems,
+      description: "Approved and visible to customers",
       icon: UtensilsCrossed,
     },
     {
-      title: "Total Orders",
-      value: "0",
-      description: "Orders received",
-      icon: ShoppingBag,
+      title: "Pending Orders",
+      value: stats?.pending ?? 0,
+      description: "Waiting for your decision",
+      icon: Clock,
     },
     {
-      title: "Revenue",
-      value: "$0.00",
-      description: "From completed orders",
-      icon: DollarSign,
-    },
-    {
-      title: "Plan",
-      value: "Free",
-      description: "Upgrade to Premium",
-      icon: Crown,
+      title: "Accepted Orders",
+      value: stats?.accepted ?? 0,
+      description: "Orders you have accepted",
+      icon: CheckCircle2,
     },
   ];
 
@@ -94,23 +166,57 @@ export default function VendorOverviewPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-dashed py-4 text-center text-sm text-muted-foreground">
+          {error}
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {cards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardDescription>{stat.title}</CardDescription>
               <stat.icon className="h-5 w-5 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-2xl font-bold">
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  stat.value
+                )}
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {stat.description}
               </p>
             </CardContent>
           </Card>
         ))}
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardDescription>Current Plan</CardDescription>
+            <Crown className="h-5 w-5 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{plan}</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {plan === "Premium"
+                ? "Unlimited active items"
+                : "Up to 3 active items"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {!loading && waitingApproval > 0 && (
+        <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          {waitingApproval} item{waitingApproval === 1 ? " is" : "s are"}{" "}
+          waiting for admin approval and not visible to customers yet.
+        </div>
+      )}
 
       {/* Quick actions */}
       <div>
@@ -135,13 +241,59 @@ export default function VendorOverviewPage() {
         <CardHeader>
           <CardTitle>Recent Orders</CardTitle>
           <CardDescription>
-            Your latest incoming orders will appear here.
+            Your latest incoming orders appear here.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No orders yet.
-          </p>
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-7 w-7 animate-spin text-orange-500" />
+            </div>
+          ) : recentOrders.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No orders yet.
+            </p>
+          ) : (
+            <div className="divide-y">
+              {recentOrders.map((order) => (
+                <div
+                  key={order._id}
+                  className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={order.itemImage}
+                    alt={order.itemName}
+                    className="size-14 shrink-0 rounded-lg object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{order.itemName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.customerName || "Customer"} · Delivery{" "}
+                      {formatDate(order.deliveryDate)}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-0.5 text-xs font-medium capitalize ${
+                      STATUS_STYLES[order.status]
+                    }`}
+                  >
+                    {order.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {recentOrders.length > 0 && (
+            <div className="mt-4 text-right">
+              <Link
+                href="/dashboard/vendor/orders"
+                className="text-sm font-medium text-orange-500 hover:underline"
+              >
+                View all orders
+              </Link>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
