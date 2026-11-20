@@ -12,7 +12,6 @@ import {
   Pizza,
   Receipt,
   ShoppingBag,
-  Store,
   UserRound,
   Users,
   UtensilsCrossed,
@@ -45,9 +44,12 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   admin: [
     { label: "Overview", href: "/dashboard/admin", icon: LayoutDashboard },
-    { label: "Users", href: "/dashboard/admin/users", icon: Users },
-    { label: "Vendors", href: "/dashboard/admin/vendors", icon: Store },
-    { label: "Orders", href: "/dashboard/admin/orders", icon: ClipboardList },
+    { label: "Manage Users", href: "/dashboard/admin/users", icon: Users },
+    {
+      label: "Manage Menu Items",
+      href: "/dashboard/admin/menu-items",
+      icon: UtensilsCrossed,
+    },
     { label: "Transactions", href: "/dashboard/admin/transactions", icon: Receipt },
   ],
 };

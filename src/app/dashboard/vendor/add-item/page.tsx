@@ -1,8 +1,11 @@
+
+
+
 // "use client";
 
 // import { useState } from "react";
 // import { toast } from "sonner";
-// import { ImageIcon, Loader2 } from "lucide-react";
+// import { ImageIcon, Loader2, UploadCloud } from "lucide-react";
 // import { Button } from "@/components/ui/button";
 // import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
@@ -16,6 +19,7 @@
 // } from "@/components/ui/card";
 // import { apiFetch } from "@/lib/api";
 
+
 // const categories = [
 //   "Classic",
 //   "Vegetarian",
@@ -26,14 +30,18 @@
 // ];
 
 // export default function AddMenuItemPage() {
+
 //   const [name, setName] = useState("");
 //   const [description, setDescription] = useState("");
 //   const [category, setCategory] = useState("");
 //   const [price, setPrice] = useState("");
+//   const [location, setLocation] = useState("");
 //   const [ingredients, setIngredients] = useState("");
 //   const [isVegetarian, setIsVegetarian] = useState(false);
-//   const [imageUrl, setImageUrl] = useState("");
-//   const [imageError, setImageError] = useState(false);
+  
+//   // Changed from imageUrl to imageFile + imagePreview
+//   const [imageFile, setImageFile] = useState<File | null>(null);
+//   const [imagePreview, setImagePreview] = useState<string>("");
 //   const [loading, setLoading] = useState(false);
 
 //   function resetForm() {
@@ -41,10 +49,21 @@
 //     setDescription("");
 //     setCategory("");
 //     setPrice("");
+//     setLocation("");
 //     setIngredients("");
 //     setIsVegetarian(false);
-//     setImageUrl("");
-//     setImageError(false);
+//     setImageFile(null);
+//     setImagePreview("");
+//   }
+
+//   // Handle local file selection and preview
+//   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+//     const file = e.target.files?.[0];
+//     if (file) {
+//       setImageFile(file);
+//       // Create a temporary local URL for the preview
+//       setImagePreview(URL.createObjectURL(file));
+//     }
 //   }
 
 //   async function handleSubmit(e: React.FormEvent) {
@@ -54,13 +73,31 @@
 //       toast.error("Please choose a category");
 //       return;
 //     }
-//     if (imageError) {
-//       toast.error("The image URL could not be loaded. Please check it.");
+//     if (!imageFile) {
+//       toast.error("Please select an image for the pizza");
 //       return;
 //     }
 
 //     setLoading(true);
 //     try {
+//       // STEP 1: Upload image to ImgBB via our Next.js API route
+//       const formData = new FormData();
+//       formData.append("image", imageFile);
+
+//       const uploadRes = await fetch("/api/upload", {
+//         method: "POST",
+//         body: formData,
+//       });
+
+//       const uploadData = await uploadRes.json();
+
+//       if (!uploadRes.ok) {
+//         throw new Error(uploadData.error || "Failed to upload image");
+//       }
+
+//       const uploadedImageUrl = uploadData.url;
+
+//       // STEP 2: Send the rest of the form data to the Express server
 //       await apiFetch("/api/menu-items", {
 //         method: "POST",
 //         body: {
@@ -68,7 +105,8 @@
 //           description,
 //           category,
 //           price: Number(price),
-//           image: imageUrl.trim(),
+//           location: location.trim(),
+//           image: uploadedImageUrl, // Send the ImgBB URL
 //           isVegetarian,
 //           ingredients: ingredients
 //             .split(",")
@@ -77,7 +115,7 @@
 //         },
 //       });
 
-//       toast.success("Menu item added successfully");
+//       toast.success("Menu item submitted. It will appear once an admin approves it.");
 //       resetForm();
 //     } catch (error) {
 //       toast.error(
@@ -87,8 +125,6 @@
 //       setLoading(false);
 //     }
 //   }
-
-//   const showPreview = imageUrl.trim().length > 0 && !imageError;
 
 //   return (
 //     <div className="mx-auto max-w-3xl space-y-6">
@@ -105,7 +141,8 @@
 //         <CardHeader>
 //           <CardTitle>Pizza details</CardTitle>
 //           <CardDescription>
-//             All fields are required except ingredients.
+//             All fields are required except ingredients. New items are reviewed
+//             by an admin before they go live.
 //           </CardDescription>
 //         </CardHeader>
 //         <CardContent>
@@ -175,6 +212,19 @@
 //             </div>
 
 //             <div className="space-y-2">
+//               <Label htmlFor="location">Location (area / city)</Label>
+//               <Input
+//                 id="location"
+//                 placeholder="e.g. Gulshan, Dhaka"
+//                 value={location}
+//                 onChange={(e) => setLocation(e.target.value)}
+//                 required
+//                 minLength={2}
+//                 maxLength={100}
+//               />
+//             </div>
+
+//             <div className="space-y-2">
 //               <Label htmlFor="ingredients">Ingredients</Label>
 //               <Input
 //                 id="ingredients"
@@ -194,38 +244,30 @@
 //               This pizza is vegetarian
 //             </label>
 
+//             {/* Changed to File Upload */}
 //             <div className="space-y-2">
-//               <Label htmlFor="image">Pizza image URL</Label>
+//               <Label htmlFor="image">Pizza Image File</Label>
 //               <Input
 //                 id="image"
-//                 type="url"
-//                 placeholder="https://example.com/pizza.jpg"
-//                 value={imageUrl}
-//                 onChange={(e) => {
-//                   setImageUrl(e.target.value);
-//                   setImageError(false);
-//                 }}
-//                 required
+//                 type="file"
+//                 accept="image/*"
+//                 onChange={handleImageChange}
+//                 required={!imageFile} // Required only if a file isn't already selected
+//                 className="cursor-pointer"
 //               />
-//               {imageError && (
-//                 <p className="text-sm text-red-600">
-//                   This image could not be loaded. Check the URL.
-//                 </p>
-//               )}
 
-//               <div className="flex h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed text-sm text-muted-foreground">
-//                 {showPreview ? (
+//               <div className="mt-2 flex h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/20 text-sm text-muted-foreground">
+//                 {imagePreview ? (
 //                   // eslint-disable-next-line @next/next/no-img-element
 //                   <img
-//                     src={imageUrl.trim()}
+//                     src={imagePreview}
 //                     alt="Pizza preview"
 //                     className="h-full w-full object-cover"
-//                     onError={() => setImageError(true)}
 //                   />
 //                 ) : (
 //                   <div className="flex flex-col items-center gap-2">
-//                     <ImageIcon className="h-8 w-8 text-orange-500" />
-//                     <span>Image preview appears here</span>
+//                     <UploadCloud className="h-8 w-8 text-orange-500" />
+//                     <span>Select an image from your computer</span>
 //                   </div>
 //                 )}
 //               </div>
@@ -239,7 +281,7 @@
 //               {loading ? (
 //                 <>
 //                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-//                   Saving...
+//                   Uploading & Saving...
 //                 </>
 //               ) : (
 //                 "Add Menu Item"
@@ -253,11 +295,13 @@
 // }
 
 
+
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation"; // Added useRouter
 import { toast } from "sonner";
-import { ImageIcon, Loader2 } from "lucide-react";
+import { Loader2, UploadCloud } from "lucide-react"; // Removed ImageIcon
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -281,6 +325,8 @@ const categories = [
 ];
 
 export default function AddMenuItemPage() {
+  const router = useRouter(); // Initialized router
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -288,8 +334,9 @@ export default function AddMenuItemPage() {
   const [location, setLocation] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [isVegetarian, setIsVegetarian] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageError, setImageError] = useState(false);
+  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   function resetForm() {
@@ -300,8 +347,16 @@ export default function AddMenuItemPage() {
     setLocation("");
     setIngredients("");
     setIsVegetarian(false);
-    setImageUrl("");
-    setImageError(false);
+    setImageFile(null);
+    setImagePreview("");
+  }
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -311,13 +366,31 @@ export default function AddMenuItemPage() {
       toast.error("Please choose a category");
       return;
     }
-    if (imageError) {
-      toast.error("The image URL could not be loaded. Please check it.");
+    if (!imageFile) {
+      toast.error("Please select an image for the pizza");
       return;
     }
 
     setLoading(true);
     try {
+      // STEP 1: Upload image to ImgBB
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const uploadRes = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok) {
+        throw new Error(uploadData.error || "Failed to upload image");
+      }
+
+      const uploadedImageUrl = uploadData.url;
+
+      // STEP 2: Send data to Express server
       await apiFetch("/api/menu-items", {
         method: "POST",
         body: {
@@ -326,7 +399,7 @@ export default function AddMenuItemPage() {
           category,
           price: Number(price),
           location: location.trim(),
-          image: imageUrl.trim(),
+          image: uploadedImageUrl,
           isVegetarian,
           ingredients: ingredients
             .split(",")
@@ -337,6 +410,13 @@ export default function AddMenuItemPage() {
 
       toast.success("Menu item submitted. It will appear once an admin approves it.");
       resetForm();
+      
+      // Refresh the dashboard data in the background
+      router.refresh(); 
+      
+      // Optionally, redirect them back to the dashboard so they see the new stats
+      // router.push("/dashboard/vendor"); 
+      
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to add menu item"
@@ -345,8 +425,6 @@ export default function AddMenuItemPage() {
       setLoading(false);
     }
   }
-
-  const showPreview = imageUrl.trim().length > 0 && !imageError;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -467,37 +545,28 @@ export default function AddMenuItemPage() {
             </label>
 
             <div className="space-y-2">
-              <Label htmlFor="image">Pizza image URL</Label>
+              <Label htmlFor="image">Pizza Image File</Label>
               <Input
                 id="image"
-                type="url"
-                placeholder="https://example.com/pizza.jpg"
-                value={imageUrl}
-                onChange={(e) => {
-                  setImageUrl(e.target.value);
-                  setImageError(false);
-                }}
-                required
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                required={!imageFile}
+                className="cursor-pointer"
               />
-              {imageError && (
-                <p className="text-sm text-red-500">
-                  This image could not be loaded. Check the URL.
-                </p>
-              )}
 
-              <div className="flex h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed text-sm text-muted-foreground">
-                {showPreview ? (
+              <div className="mt-2 flex h-48 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/20 text-sm text-muted-foreground">
+                {imagePreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={imageUrl.trim()}
+                    src={imagePreview}
                     alt="Pizza preview"
                     className="h-full w-full object-cover"
-                    onError={() => setImageError(true)}
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
-                    <ImageIcon className="h-8 w-8 text-orange-500" />
-                    <span>Image preview appears here</span>
+                    <UploadCloud className="h-8 w-8 text-orange-500" />
+                    <span>Select an image from your computer</span>
                   </div>
                 )}
               </div>
@@ -511,7 +580,7 @@ export default function AddMenuItemPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  Uploading & Saving...
                 </>
               ) : (
                 "Add Menu Item"
