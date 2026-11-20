@@ -8,7 +8,7 @@ import type { MenuItem } from "@/components/pizza-card";
 
 export function PopularPizzasGrid({ items }: { items: MenuItem[] }) {
   return (
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((pizza, index) => (
         <motion.div
           key={pizza._id}

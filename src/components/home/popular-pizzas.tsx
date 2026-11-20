@@ -12,7 +12,7 @@ async function getLatestPizzas(): Promise<MenuItem[]> {
 
   try {
     const res = await fetch(
-      `${baseUrl}/api/menu-items?sort=newest&limit=4`,
+      `${baseUrl}/api/menu-items?sort=newest&limit=6`,
       { cache: "no-store" }
     );
     if (!res.ok) return [];
@@ -63,3 +63,4 @@ export async function PopularPizzas() {
     </section>
   );
 }
+
