@@ -1,7 +1,14 @@
+
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 async function getToken(): Promise<string> {
-  const res = await fetch("/api/token", { cache: "no-store" });
+  // Use the absolute URL to be safe on Vercel
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const res = await fetch(`${baseUrl}/api/token`, { 
+    cache: "no-store",
+    credentials: "include", // Ensure cookies are sent to your own API route
+  });
 
   if (!res.ok) {
     throw new Error("Please log in to continue");
@@ -28,7 +35,12 @@ export async function apiFetch<T = unknown>(
   }
 
   if (auth) {
-    headers["Authorization"] = `Bearer ${await getToken()}`;
+    try {
+      headers["Authorization"] = `Bearer ${await getToken()}`;
+    } catch {
+      // Removed the 'error' variable to fix the ESLint red line
+      throw new Error("Session expired. Please log in again.");
+    }
   }
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -36,6 +48,7 @@ export async function apiFetch<T = unknown>(
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     cache: "no-store",
+    credentials: "include", // Critical for cross-origin cookies
   });
 
   const data = await res.json().catch(() => ({}));
