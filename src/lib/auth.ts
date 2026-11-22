@@ -25,6 +25,15 @@ export const auth = betterAuth({
     "http://localhost:3000",
     "https://pizzahub-client-so2v.vercel.app",
   ],
+  // 3. Crucial fix for Vercel cross-origin cookies
+  advanced: {
+    useSecureCookies: true,
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+      path: "/",
+    },
+  },
   database: mongodbAdapter(db),
   emailAndPassword: {
     enabled: true,
