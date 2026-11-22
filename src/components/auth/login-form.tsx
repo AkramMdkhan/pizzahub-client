@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "@/lib/auth-client";
 
-export function LoginForm() {
+function LoginFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Read the callback URL from the address bar, or default to home page
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +39,7 @@ export function LoginForm() {
     }
 
     toast.success("Welcome back!");
-    router.push("/");
+    router.push(callbackUrl); // Redirect to where they came from
     router.refresh();
   }
 
@@ -42,7 +47,7 @@ export function LoginForm() {
     setGoogleLoading(true);
     const { error } = await signIn.social({
       provider: "google",
-      callbackURL: "/",
+      callbackURL: callbackUrl, // Redirect here after Google login
     });
     if (error) {
       setGoogleLoading(false);
@@ -144,5 +149,14 @@ export function LoginForm() {
         </Link>
       </p>
     </div>
+  );
+}
+
+// Wrap in Suspense to satisfy Next.js build requirements for useSearchParams
+export function LoginForm() {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div>}>
+      <LoginFormContent />
+    </Suspense>
   );
 }

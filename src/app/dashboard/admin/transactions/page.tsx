@@ -28,6 +28,7 @@ interface ListResponse {
 const PAGE_SIZE = 10;
 
 const STATUS_STYLES: Record<string, string> = {
+  paid: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
   succeeded: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
   failed: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
   pending: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
@@ -170,12 +171,12 @@ export default function AdminTransactionsPage() {
                     </td>
                     <td className="px-4 py-3 capitalize">{tx.plan || "Premium"}</td>
                     <td className="px-4 py-3 font-semibold">
-                      ${((tx.amount || 0) / 100).toFixed(2)} {tx.currency?.toUpperCase() || "USD"}
+                      ${Number(tx.amount || 0).toFixed(2)} {tx.currency?.toUpperCase() || "USD"}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize
                         ${STATUS_STYLES[tx.status] || STATUS_STYLES.pending}`}>
-                        {tx.status || "succeeded"}
+                        {tx.status || "paid"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">

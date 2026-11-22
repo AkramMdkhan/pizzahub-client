@@ -51,7 +51,7 @@ export default function ContactPage() {
               <h3 className="font-poppins text-lg font-semibold mb-1">Call Us</h3>
               <p className="text-sm text-muted-foreground mb-3">Mon-Fri, 9am to 5pm</p>
               <a href="tel:+15551234567" className="text-sm font-medium text-primary hover:underline">
-                +1 (555) 123-4567
+                +880 1234 567890
               </a>
             </CardContent>
           </Card>
@@ -64,7 +64,7 @@ export default function ContactPage() {
               <h3 className="font-poppins text-lg font-semibold mb-1">Visit Us</h3>
               <p className="text-sm text-muted-foreground mb-3">Come say hello</p>
               <p className="text-sm font-medium">
-                123 Pizza Lane<br />New York, NY 10001
+               House 12, Road 5,<br />Dhaka, Bangladesh
               </p>
             </CardContent>
           </Card>

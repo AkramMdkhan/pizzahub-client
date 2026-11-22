@@ -88,7 +88,7 @@ export function Hero() {
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-500 to-red-500 p-1.5">
             <div className="relative h-full w-full overflow-hidden rounded-full bg-background">
               <Image
-                src="/images/hero-pizza.jpg"
+                src="/images/hero-pizza-6.jpg"
                 alt="Freshly baked pizza"
                 fill
                 priority

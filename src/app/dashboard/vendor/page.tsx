@@ -19,7 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useSession } from "@/lib/auth-client";
 import { apiFetch } from "@/lib/api";
 
 interface MenuItemLite {
@@ -33,6 +32,12 @@ interface OrderStats {
   accepted: number;
   rejected: number;
   cancelled: number;
+}
+
+interface PlanStatus {
+  plan: "free" | "premium";
+  isPremium: boolean;
+  expiresAt: string | null;
 }
 
 interface Order {
@@ -72,7 +77,8 @@ const STATUS_STYLES: Record<Order["status"], string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+  if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", {
@@ -83,9 +89,9 @@ function formatDate(value: string) {
 }
 
 export default function VendorOverviewPage() {
-  const { data: session } = useSession();
   const [items, setItems] = useState<MenuItemLite[]>([]);
   const [stats, setStats] = useState<OrderStats | null>(null);
+  const [planStatus, setPlanStatus] = useState<PlanStatus | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,12 +103,14 @@ export default function VendorOverviewPage() {
       apiFetch<{ items: MenuItemLite[] }>("/api/menu-items/mine"),
       apiFetch<OrderStats>("/api/orders/stats"),
       apiFetch<{ items: Order[] }>("/api/orders/vendor"),
+      apiFetch<PlanStatus>("/api/stripe/status"),
     ])
-      .then(([itemsData, statsData, ordersData]) => {
+      .then(([itemsData, statsData, ordersData, planData]) => {
         if (cancelled) return;
         setItems(itemsData.items);
         setStats(statsData);
         setRecentOrders(ordersData.items.slice(0, 5));
+        setPlanStatus(planData);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -119,11 +127,8 @@ export default function VendorOverviewPage() {
     };
   }, []);
 
-  const plan =
-    (session?.user as { subscriptionPlan?: string } | undefined)
-      ?.subscriptionPlan === "premium"
-      ? "Premium"
-      : "Free";
+  // The plan comes from the server (the database), not from the login session
+  const isPremium = planStatus?.isPremium ?? false;
 
   const activeItems = items.filter((i) => i.status === "approved").length;
   const waitingApproval = items.filter((i) => i.status === "pending").length;
@@ -201,10 +206,20 @@ export default function VendorOverviewPage() {
             <Crown className="h-5 w-5 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{plan}</div>
+            <div className="text-2xl font-bold">
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : isPremium ? (
+                "Premium"
+              ) : (
+                "Free"
+              )}
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {plan === "Premium"
-                ? "Unlimited active items"
+              {isPremium
+                ? planStatus?.expiresAt
+                  ? `Unlimited items, until ${formatDate(planStatus.expiresAt)}`
+                  : "Unlimited active items"
                 : "Up to 3 active items"}
             </p>
           </CardContent>

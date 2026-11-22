@@ -5,7 +5,7 @@ import MenuFilters from "@/components/menu-filters";
 import MenuPagination from "@/components/menu-pagination";
 
 export const metadata = {
-  title: "Menu | PizzaHub",
+  title: "Menu",
   description: "Browse, search and filter pizzas from all our restaurants.",
 };
 
@@ -21,6 +21,7 @@ interface MenuPageProps {
   searchParams: Promise<{
     search?: string;
     category?: string;
+    location?: string; // Added location
     sort?: string;
     page?: string;
   }>;
@@ -31,12 +32,14 @@ const PAGE_SIZE = 9;
 async function getMenu(params: {
   search?: string;
   category?: string;
+  location?: string; // Added location
   sort?: string;
   page?: string;
 }): Promise<MenuResponse | null> {
   const query = new URLSearchParams();
   if (params.search) query.set("search", params.search);
   if (params.category) query.set("category", params.category);
+  if (params.location) query.set("location", params.location); // Added location
   if (params.sort) query.set("sort", params.sort);
   if (params.page) query.set("page", params.page);
   query.set("limit", String(PAGE_SIZE));
@@ -67,7 +70,7 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
         </h1>
         <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
           Browse pizzas from all our partner restaurants. Search, filter by
-          category and sort by price to find your favorite.
+          category, location and sort by price to find your favorite.
         </p>
       </div>
 

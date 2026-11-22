@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Crown } from "lucide-react";
 
 export interface MenuItem {
   _id: string;
@@ -11,6 +12,7 @@ export interface MenuItem {
   isVegetarian?: boolean;
   vendorEmail?: string;
   createdAt?: string;
+  isPremiumVendor?: boolean; // Added this
 }
 
 export default function PizzaCard({ item }: { item: MenuItem }) {
@@ -23,11 +25,23 @@ export default function PizzaCard({ item }: { item: MenuItem }) {
           alt={item.name}
           className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
         />
+        
+        {/* Category Badge */}
         <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-medium capitalize backdrop-blur">
           {item.category}
         </span>
+
+        {/* Premium Badge */}
+        {item.isPremiumVendor && (
+          <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-yellow-500 px-3 py-1 text-xs font-bold text-black shadow-sm">
+            <Crown className="h-3 w-3" />
+            Premium
+          </span>
+        )}
+
+        {/* Vegetarian Badge (moved to bottom right to avoid overlapping Premium) */}
         {item.isVegetarian && (
-          <span className="absolute right-3 top-3 rounded-full bg-green-600 px-3 py-1 text-xs font-medium text-white">
+          <span className="absolute bottom-3 right-3 rounded-full bg-green-600 px-3 py-1 text-xs font-medium text-white">
             Veg
           </span>
         )}

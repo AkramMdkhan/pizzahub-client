@@ -1,10 +1,15 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, Leaf, MapPin, Store } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { ArrowLeft, Crown, Leaf, MapPin, Store } from "lucide-react";
 import type { MenuItem } from "@/components/pizza-card";
 import OrderForm from "@/components/order-form";
+import { auth } from "@/lib/auth";
 
-type MenuItemWithLocation = MenuItem & { location?: string };
+type MenuItemWithLocation = MenuItem & {
+  location?: string;
+  isPremiumVendor?: boolean;
+};
 
 interface PizzaDetailsPageProps {
   params: Promise<{ id: string }>;
@@ -29,7 +34,8 @@ export async function generateMetadata({ params }: PizzaDetailsPageProps) {
   const item = await getItem(id);
 
   return {
-    title: item ? `${item.name} | PizzaHub` : "Pizza not found | PizzaHub",
+    // The root layout adds "| PizzaHub" to every title
+    title: item ? item.name : "Pizza not found",
     description: item?.description,
   };
 }
@@ -38,8 +44,18 @@ export default async function PizzaDetailsPage({
   params,
 }: PizzaDetailsPageProps) {
   const { id } = await params;
-  const item = await getItem(id);
 
+  // This page is private: logged-out visitors are sent to Sign In
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect(`/login?callbackUrl=${encodeURIComponent(`/menu/${id}`)}`);
+  }
+
+  // Missing, rejected or pending items show the 404 page
+  const item = await getItem(id);
   if (!item) notFound();
 
   return (
@@ -54,13 +70,19 @@ export default async function PizzaDetailsPage({
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
         {/* Image */}
-        <div className="overflow-hidden rounded-2xl border bg-muted">
+        <div className="relative overflow-hidden rounded-2xl border bg-muted">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.image}
             alt={item.name}
             className="aspect-square h-full w-full object-cover"
           />
+          {item.isPremiumVendor && (
+            <span className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-yellow-500 px-4 py-1.5 text-sm font-bold text-black shadow-md">
+              <Crown className="h-4 w-4" />
+              Premium Vendor
+            </span>
+          )}
         </div>
 
         {/* Details */}

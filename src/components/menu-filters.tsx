@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { Search, X, MapPin } from "lucide-react";
 
-// Must match the categories in the Add Menu Item page exactly (case-sensitive).
-// "all" is a special value meaning "no category filter".
 const CATEGORIES = [
   "all",
   "Classic",
@@ -28,10 +26,21 @@ export default function MenuFilters() {
   const searchParams = useSearchParams();
 
   const currentCategory = searchParams.get("category") ?? "all";
+  const currentLocation = searchParams.get("location") ?? "all"; // Added location
   const currentSort = searchParams.get("sort") ?? "newest";
   const urlSearch = searchParams.get("search") ?? "";
 
   const [search, setSearch] = useState(urlSearch);
+  const [locations, setLocations] = useState<string[]>([]); // State for locations
+
+  // Fetch unique locations on mount
+  useEffect(() => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+    fetch(`${baseUrl}/api/menu-items/locations`)
+      .then((res) => res.json())
+      .then((data) => setLocations(data))
+      .catch((err) => console.error("Failed to load locations", err));
+  }, []);
 
   function updateParams(updates: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -44,14 +53,13 @@ export default function MenuFilters() {
       }
     });
 
-    // any filter change goes back to page 1
-    params.delete("page");
+    params.delete("page"); // Reset to page 1 on filter change
 
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  // Debounce the search box so we don't hit the server on every keystroke
+  // Debounce the search box
   useEffect(() => {
     const timer = setTimeout(() => {
       if (search.trim() !== urlSearch) {
@@ -63,7 +71,10 @@ export default function MenuFilters() {
   }, [search]);
 
   const hasFilters =
-    urlSearch !== "" || currentCategory !== "all" || currentSort !== "newest";
+    urlSearch !== "" ||
+    currentCategory !== "all" ||
+    currentLocation !== "all" ||
+    currentSort !== "newest";
 
   function clearAll() {
     setSearch("");
@@ -83,6 +94,23 @@ export default function MenuFilters() {
             placeholder="Search pizzas by name or description..."
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-4 text-sm outline-none transition focus:ring-2 focus:ring-primary/40"
           />
+        </div>
+
+        {/* Location Filter */}
+        <div className="relative">
+          <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <select
+            value={currentLocation}
+            onChange={(e) => updateParams({ location: e.target.value })}
+            className="h-11 w-full appearance-none rounded-lg border bg-background pl-10 pr-8 text-sm outline-none transition focus:ring-2 focus:ring-primary/40 sm:w-auto"
+          >
+            <option value="all">All Locations</option>
+            {locations.map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Sort */}

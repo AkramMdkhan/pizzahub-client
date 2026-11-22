@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { RoleGuardToast } from "@/components/role-guard-toast"; // <-- Added import
 import { auth } from "@/lib/auth";
 
 export default async function DashboardLayout({
@@ -20,6 +21,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardShell user={{ name, email, image, role }}>
+      <RoleGuardToast /> {/* <-- Added here */}
       {children}
     </DashboardShell>
   );
