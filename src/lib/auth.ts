@@ -7,8 +7,10 @@ const globalForMongo = globalThis as unknown as {
   mongoClient?: MongoClient;
 };
 
-const client =
-  globalForMongo.mongoClient ?? new MongoClient(process.env.MONGODB_URI as string);
+// 1. Added a fallback URI to prevent build-time crashes if the env var is missing
+const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/pizzahub";
+
+const client = globalForMongo.mongoClient ?? new MongoClient(uri);
 
 if (process.env.NODE_ENV !== "production") {
   globalForMongo.mongoClient = client;
@@ -17,7 +19,8 @@ if (process.env.NODE_ENV !== "production") {
 const db = client.db(process.env.DB_NAME || "pizzahub");
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
+  // 2. Added fallback for the base URL
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   trustedOrigins: [
     "http://localhost:3000",
     "https://pizzahub-client-so2v.vercel.app",
