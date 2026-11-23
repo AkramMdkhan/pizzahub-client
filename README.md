@@ -16,9 +16,9 @@
 
 ## Live Links & Repositories
 
-- **Live Website:** `https://pizzahub-client-beige.vercel.app`
-- **Client Repository:** `https://github.com/AkramMdLhan/pizzahub-client`
-- **Server Repository:** `https://github.com/AkramMdkhan/pizzahub-server`
+- **Live Website:** [PizzaHub Live](https://pizzahub-client-beige.vercel.app)
+- **Client Repository:** [AkramMdkhan/pizzahub-client](https://github.com/AkramMdkhan/pizzahub-client)
+- **Server Repository:** [AkramMdkhan/pizzahub-server](https://github.com/AkramMdkhan/pizzahub-server)
 
 ---
 
