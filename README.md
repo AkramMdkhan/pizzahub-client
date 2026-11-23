@@ -8,7 +8,7 @@
 
 **PizzaHub** is a full-featured, role-based pizza ordering and delivery platform built with **Next.js (App Router)**, **ShadCN UI**, **Framer Motion**, and **Better Auth**. It connects **Customers** discovering local pizza shops and tracking orders, **Vendors (Restaurants)** managing menus, incoming orders, and Premium subscriptions, and **Admins** overseeing platform users, menu approvals, and transactions.
 
-![PizzaHub Homepage Preview](./pizzabanner.JPG)
+![PizzaHub Homepage Preview](./images/pizzabanner.JPG)
 
 > **Note on Order Checkout:** As specified for PizzaHub, customers submit orders directly with delivery details without a Stripe checkout flow on food orders; **Stripe Checkout + Webhooks** is used exclusively for **Vendor Premium subscription upgrades**.
 
