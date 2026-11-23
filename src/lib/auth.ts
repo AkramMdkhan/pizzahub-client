@@ -6,38 +6,44 @@ import { MongoClient } from "mongodb";
 
 const globalForMongo = globalThis as unknown as {
   mongoClient?: MongoClient;
+  mongoConnectPromise?: Promise<MongoClient>;
 };
 
-// Falls back to localhost so a build without the variable does not crash,
-// but on Vercel a missing value is reported clearly.
 const uri = process.env.MONGODB_URI;
-if (!uri && process.env.VERCEL) {
-  console.error("MONGODB_URI is not set in the Vercel environment variables.");
+if (!uri) {
+  throw new Error("MONGODB_URI is not set in environment variables.");
 }
 
 const client =
   globalForMongo.mongoClient ??
-  new MongoClient(uri || "mongodb://localhost:27017/pizzahub", {
+  new MongoClient(uri, {
     maxPoolSize: 10,
     serverSelectionTimeoutMS: 10000,
   });
 
-// On Vercel, let the platform close idle connections before a function is suspended
-if (process.env.VERCEL) {
-  attachDatabasePool(client);
+if (!globalForMongo.mongoClient) {
+  globalForMongo.mongoClient = client;
+  if (process.env.VERCEL) {
+    attachDatabasePool(client);
+  }
 }
 
-if (process.env.NODE_ENV !== "production") {
-  globalForMongo.mongoClient = client;
+// Kick off connection immediately and share the promise so concurrent requests wait on it
+if (!globalForMongo.mongoConnectPromise) {
+  globalForMongo.mongoConnectPromise = client.connect().catch((err) => {
+    globalForMongo.mongoConnectPromise = undefined;
+    console.error("MongoDB connection error in auth:", err);
+    throw err;
+  });
 }
 
 const db = client.db(process.env.DB_NAME || "pizzahub");
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL: process.env.BETTER_AUTH_URL || "https://pizzahub-client-beige.vercel.app",
   trustedOrigins: [
     "http://localhost:3000",
-    "https://pizzahub-client-beige.vercel.app"
+    "https://pizzahub-client-beige.vercel.app",
   ],
   advanced: {
     useSecureCookies: true,
@@ -47,7 +53,9 @@ export const auth = betterAuth({
       path: "/",
     },
   },
-  database: mongodbAdapter(db),
+  database: mongodbAdapter(db, {
+    client,
+  }),
   emailAndPassword: {
     enabled: true,
   },
@@ -65,8 +73,6 @@ export const auth = betterAuth({
         defaultValue: "customer",
         input: true,
       },
-      // Set only by the Express server after a verified Stripe payment.
-      // input: false means the browser can never write these fields.
       subscriptionPlan: {
         type: "string",
         required: false,
@@ -84,8 +90,6 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          // Only "vendor" can be chosen at sign-up. Everything else
-          // becomes "customer". Admin is created manually in the database.
           const role =
             (user as { role?: string }).role === "vendor" ? "vendor" : "customer";
           return { data: { ...user, role } };
@@ -93,7 +97,6 @@ export const auth = betterAuth({
       },
       update: {
         before: async (data) => {
-          // Profile updates must never change role or subscription fields
           const safe = { ...(data as Record<string, unknown>) };
           delete safe.role;
           delete safe.subscriptionPlan;
