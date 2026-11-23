@@ -22,8 +22,7 @@ export const auth = betterAuth({
   // 2. Added fallback for the base URL
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   trustedOrigins: [
-    "http://localhost:3000",
-    "https://pizzahub-client-so2v.vercel.app",
+    "http://localhost:3000"
   ],
   // 3. Crucial fix for Vercel cross-origin cookies
   advanced: {
