@@ -1,7 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { Clock, Pizza, ShoppingBag, Truck, XCircle } from "lucide-react";
+import { Clock, Loader2, Pizza, ShoppingBag, Truck, XCircle } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -10,10 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { auth } from "@/lib/auth";
+import { useSession } from "@/lib/auth-client";
+import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-// 1. Define strict types for the data
 interface Order {
   _id: string;
   itemName: string;
@@ -30,68 +31,73 @@ interface StatsData {
   cancelled: number;
 }
 
-// 2. Fetch real data from your Express server
-async function getCustomerData(token: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
-  
-  try {
-    const [statsRes, ordersRes] = await Promise.all([
-      fetch(`${baseUrl}/api/orders/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }),
-      fetch(`${baseUrl}/api/orders/mine`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }),
-    ]);
+const STATUS_STYLES: Record<Order["status"], string> = {
+  pending: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+  accepted: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+  rejected: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
+  cancelled: "bg-muted text-muted-foreground",
+};
 
-    if (!statsRes.ok || !ordersRes.ok) return null;
-
-    const stats: StatsData = await statsRes.json();
-    const ordersData: { items: Order[] } = await ordersRes.json();
-    
-    // Return only the 3 most recent orders for the overview
-    return { stats, recentOrders: ordersData.items.slice(0, 3) };
-  } catch (error) {
-    return null;
-  }
-}
-
-// 3. Generate a temporary JWT for the Express server
-async function getExpressToken() {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/token`, {
-      headers: await headers(), 
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.token as string;
-  } catch {
-    return null;
-  }
-}
-
-export default async function CustomerOverviewPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
+}
 
-  if (!session) {
-    redirect("/login");
+export default function CustomerOverviewPage() {
+  const { data: session, isPending } = useSession();
+
+  const [statsData, setStatsData] = useState<StatsData>({
+    total: 0,
+    pending: 0,
+    accepted: 0,
+    rejected: 0,
+    cancelled: 0,
+  });
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      apiFetch<StatsData>("/api/orders/stats"),
+      apiFetch<{ items: Order[] }>("/api/orders/mine"),
+    ])
+      .then(([stats, ordersData]) => {
+        if (cancelled) return;
+        setStatsData(stats);
+        setRecentOrders(ordersData.items.slice(0, 3));
+        setError("");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (isPending || loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    );
   }
 
-  const token = await getExpressToken();
-  const data = token ? await getCustomerData(token) : null;
+  const firstName = session?.user?.name?.split(" ")[0] || "Customer";
 
-  // Fallback to 0 if the fetch fails
-  const statsData: StatsData = data?.stats || { total: 0, pending: 0, accepted: 0, rejected: 0, cancelled: 0 };
-  const recentOrders: Order[] = data?.recentOrders || [];
-
-  const firstName = session.user.name.split(" ")[0];
-
-  // 4. Map the stats to match the assignment requirements
   const stats = [
     { label: "Total Orders", value: statsData.total, icon: ShoppingBag },
     { label: "Pending", value: statsData.pending, icon: Clock },
@@ -122,6 +128,12 @@ export default async function CustomerOverviewPage() {
           Order a pizza
         </Link>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -164,7 +176,10 @@ export default async function CustomerOverviewPage() {
           ) : (
             <div className="space-y-4">
               {recentOrders.map((order) => (
-                <div key={order._id} className="flex items-center gap-4 rounded-xl border p-4">
+                <div
+                  key={order._id}
+                  className="flex items-center gap-4 rounded-xl border p-4"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={order.itemImage}
@@ -174,22 +189,25 @@ export default async function CustomerOverviewPage() {
                   <div className="flex-1">
                     <p className="font-semibold">{order.itemName}</p>
                     <p className="text-sm text-muted-foreground">
-                      Delivery: {new Date(order.deliveryDate).toLocaleDateString()}
+                      Delivery: {formatDate(order.deliveryDate)}
                     </p>
                   </div>
                   <div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium capitalize 
-                      ${order.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' : 
-                        order.status === 'accepted' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400' : 
-                        order.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' : 
-                        'bg-muted text-muted-foreground'}`}>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${
+                        STATUS_STYLES[order.status]
+                      }`}
+                    >
                       {order.status}
                     </span>
                   </div>
                 </div>
               ))}
               <div className="pt-2 text-center">
-                <Link href="/dashboard/customer/orders" className="text-sm font-medium text-orange-500 hover:underline">
+                <Link
+                  href="/dashboard/customer/orders"
+                  className="text-sm font-medium text-orange-500 hover:underline"
+                >
                   View all orders
                 </Link>
               </div>
